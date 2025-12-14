@@ -1,0 +1,74 @@
+#!/bin/sh
+
+tag=develpod-$(pwd | xxd -p | tr -d '\n')
+
+build_image() {
+	delete_everything
+	check_container_exists
+
+	podman build . -t $tag
+}
+
+do_something() {
+	if [ -z "$1" ]; then
+		echo "Error: No command name specified"
+		exit 1
+	fi
+
+	check_already_built
+	check_container_exists
+	cmd=$(cat Containerfile | grep -m 1 "##DEVELPOD## $1" | sed 's/^##DEVELPOD## [^ ]*[ ]*//')
+
+	if [ -z "$cmd" ]; then
+		echo "Error: No command of given name"
+		exit 1
+	fi
+
+	podman run \
+		-v $(pwd):/develpod \
+		-v /tmp/.X11-unix:/tmp/.X11-unix \
+		-e DISPLAY=$DISPLAY \
+		-it \
+		--rm \
+		$tag $cmd
+}
+
+delete_everything() {
+	podman rmi $tag --force
+}
+
+check_container_exists() {
+	if [ ! -e "Containerfile" ]; then
+		echo "Error: No Containerfile found"
+		exit 1
+	fi
+}
+
+check_already_built() {
+	if [ -z  "$(podman images | grep $tag)" ]; then
+		echo "Error: Container not yet built"
+		exit 1
+	fi
+}
+
+usage_message() {
+	echo "Easily create and run commands in podman containers"
+	echo ""
+	echo "Usage:"
+	echo "  $0 [command]"
+	echo ""
+	echo "Available Commands:"
+	echo -e "  build\t\tCreate an image from the Containerfile provided in the current directory"
+	echo -e "  clean\t\tDeletes the image associated with this directory"
+	echo -e "  [name]\tRun the command of provided name in an instance of the image associated with this directory"
+}
+
+if [ "$1" = "build" ]; then
+	build_image
+elif [ "$1" = "clean" ]; then
+	delete_everything
+elif [ ! -z "$1" ]; then
+	do_something $1
+else
+	usage_message
+fi

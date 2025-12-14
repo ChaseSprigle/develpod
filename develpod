@@ -6,7 +6,7 @@ build_image() {
 	delete_everything
 	check_container_exists
 
-	podman build . -t $tag
+	podman build . -t "$tag"
 }
 
 do_something() {
@@ -17,6 +17,7 @@ do_something() {
 
 	check_already_built
 	check_container_exists
+
 	cmd=$(cat Containerfile | grep -m 1 "##DEVELPOD## $1" | sed 's/^##DEVELPOD## [^ ]*[ ]*//')
 
 	if [ -z "$cmd" ]; then
@@ -25,16 +26,16 @@ do_something() {
 	fi
 
 	podman run \
-		-v $(pwd):/develpod \
+		-v "$(pwd)":/develpod \
 		-v /tmp/.X11-unix:/tmp/.X11-unix \
-		-e DISPLAY=$DISPLAY \
+		-e DISPLAY="$DISPLAY" \
 		-it \
 		--rm \
-		$tag $cmd
+		"$tag" "$cmd"
 }
 
 delete_everything() {
-	podman rmi $tag --force
+	podman rmi "$tag" --force
 }
 
 check_container_exists() {
@@ -45,7 +46,7 @@ check_container_exists() {
 }
 
 check_already_built() {
-	if [ -z  "$(podman images | grep $tag)" ]; then
+	if ! podman images | grep -q "$tag"; then
 		echo "Error: Container not yet built"
 		exit 1
 	fi
@@ -58,9 +59,9 @@ usage_message() {
 	echo "  $0 [command]"
 	echo ""
 	echo "Available Commands:"
-	echo -e "  build\t\tCreate an image from the Containerfile provided in the current directory"
-	echo -e "  clean\t\tDeletes the image associated with this directory"
-	echo -e "  [name]\tRun the command of provided name in an instance of the image associated with this directory"
+	echo "  build		Create an image from the Containerfile provided in the current directory"
+	echo "  clean		Deletes the image associated with this directory"
+	echo "  [name]	Run the command of provided name in an instance of the image associated with this directory"
 }
 
 if [ "$1" = "build" ]; then
@@ -68,7 +69,7 @@ if [ "$1" = "build" ]; then
 elif [ "$1" = "clean" ]; then
 	delete_everything
 elif [ ! -z "$1" ]; then
-	do_something $1
+	do_something "$1"
 else
 	usage_message
 fi
